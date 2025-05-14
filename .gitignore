@@ -1,0 +1,7 @@
+/data/*
+/code/utils/metrics.py
+/code/config.py
+code/.env
+.venv/
+__pycache__/
+**/__pycache__/
