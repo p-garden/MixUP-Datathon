@@ -10,6 +10,7 @@ from aiohttp import ClientTimeout  # 상단 import 추가
 from config import ExperimentConfig
 from prompts.templates import TEMPLATES
 from utils.metrics import evaluate_correction
+import re
 
 
 
@@ -62,36 +63,41 @@ class ExperimentRunner:
                             else:
                                 raise e
 
-               # 템플릿 단계별 메시지 구성
+                # ✅ 싱글턴 메시지 구성
                 messages = [
-                    {"role": "system", "content": "너는 한국어 문장을 단계적으로 교정하는 AI야. 사용자 요청에 따라 순서대로 교정해줘."},
-                    {"role": "user", "content": self.template['step1'].format(text=text)}
+                    {"role": "system", "content": "너는 한국어 문장을 교정하는 AI야. 사용자의 문장을 보고 오류를 고쳐줘."},
+                    {"role": "user", "content": self.template.format(text=text)}
                 ]
-                r1 = await call(messages)
-                messages.append({"role": "assistant", "content": r1})
 
-                messages.append({"role": "user", "content": self.template['step2']})
-                r2 = await call(messages)
-                messages.append({"role": "assistant", "content": r2})
+                # ✅ API 호출 (단 한 번)
+                response = await call(messages)
 
-                messages.append({"role": "user", "content": self.template['step3']})
-                r3 = await call(messages)
-                # step3 호출 없이 step2의 응답 r2
-                # step3 호출 없이 step2의 응답 r2를 최종 결과로 반환
-                return r3
+
+                return response
 
         timeout = ClientTimeout(total=30)  # 최대 30초 대기 허용
         async with aiohttp.ClientSession(timeout=timeout) as session:
             tasks = [fetch_multi_turn(session, prompt) for prompt in prompts]
             return await asyncio.gather(*tasks)
-                    
+            
     def run(self, data: pd.DataFrame) -> pd.DataFrame:
         """데이터셋에 대한 실험 실행 (비동기 배치 처리 + 중간 저장은 test셋에만 적용)"""
         results = []
         batch_size = self.config.batch_size
-        use_intermediate = self.config.experiment_name == "final_submission"
+        use_intermediate = self.config.experiment_name == "final_submission2"
         save_path = f"outputs/intermediate_{self.config.experiment_name}.csv"
+        def clean_output(err: str, cor: str) -> str:
+            """따옴표 조건부 제거 + 공백 제거"""
+            cor = re.sub(r'[\s\u200b\u200c\u200d\ufeff]+$', '', cor)  # 끝 공백 제거
+            cor = re.sub(r'\s+(?=["\'])', '', cor)  # 따옴표 앞 공백 제거
 
+            # 입력이 따옴표로 감싸져 있지 않으면 출력에서 따옴표 제거
+            if not (err.startswith('"') and err.endswith('"')) and \
+            not (err.startswith("'") and err.endswith("'")):
+                if (cor.startswith('"') and cor.endswith('"')) or \
+                (cor.startswith("'") and cor.endswith("'")):
+                    cor = cor[1:-1].strip()
+            return cor 
         # ✅ 이미 처리된 id 불러오기 (재시작 지원, test셋만)
         processed_ids = set()
         if use_intermediate and os.path.exists(save_path):
@@ -113,10 +119,11 @@ class ExperimentRunner:
 
             batch_results = []
             for (_, row), corrected in zip(batch.iterrows(), responses):
+                cleaned = clean_output(row['err_sentence'], corrected)  # ✅ 후처리 적용
                 result = {
                     'id': row['id'],
                     'err_sentence': row['err_sentence'],
-                    'cor_sentence': corrected
+                    'cor_sentence': cleaned
                 }
                 results.append(result)
                 batch_results.append(result)

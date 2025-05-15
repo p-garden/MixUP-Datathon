@@ -38,19 +38,24 @@ def main():
     for template_name in tqdm(TEMPLATES.keys(), desc="템플릿 실험 진행", ncols=80):
         config = ExperimentConfig(
             template_name=template_name,
-            temperature=0.3,
+            temperature=0.0,
             batch_size=4,
             experiment_name=f"toy_experiment_{template_name}"
         )
         runner = ExperimentRunner(config, api_key)
-        results[template_name] = runner.run_template_experiment(train_data, valid_data)
-        # 🔽 🔽 여기에 추가
+        result = runner.run_template_experiment(train_data, valid_data)
+
+        # 결과 저장
+        results[template_name] = {
+            "train_recall": result["train_recall"],
+            "valid_recall": result["valid_recall"]
+        }
+
+        # 🔽 train 교정 결과 저장
         train_inputs = train_data[["id", "err_sentence", "cor_sentence"]].reset_index(drop=True)
-        train_inputs = train_inputs.rename(columns={"cor_sentence": "answer"})  # 일치시키기 위해
-        train_outputs = runner.run(train_inputs)
-        train_results = train_inputs.copy()
-        train_results["cor_sentence"] = train_outputs["cor_sentence"]
-        train_results.to_csv(f"outputs/train_outputs_{template_name}.csv", index=False)    
+        train_inputs = train_inputs.rename(columns={"cor_sentence": "answer"})
+        train_inputs["cor_sentence"] = result["train_results"]["cor_sentence"]
+        train_inputs.to_csv(f"outputs/train_results{template_name}.csv", index=False)  
     # 결과 비교
     print("\n=== 템플릿별 성능 비교 ===")
     for template_name, result in results.items():
@@ -76,7 +81,7 @@ def main():
 
     preview_config = ExperimentConfig(
         template_name=best_template,
-        temperature=0.3,
+        temperature=0.0,
         batch_size=4,
         experiment_name="preview_generation"
     )
@@ -94,17 +99,17 @@ def main():
     print("\n=== 테스트 데이터 예측 시작 ===")
     config = ExperimentConfig(
         template_name=best_template,
-        temperature=0.3,
+        temperature=0.0,
         batch_size=4,
-        experiment_name="final_submission"
+        experiment_name="final_submission2"
     )
     
     runner = ExperimentRunner(config, api_key)
     test_results = runner.run(test)
     # 문장부호 뒤 공백 제거 함수
     def remove_trailing_space_after_punctuation(text):
-        text = text.rstrip()  # 문자열 끝 전체에서 공백 제거
-        return re.sub(r'([.?!…])$', r'\1', text)
+        # 1. 문자열 끝에 붙은 모든 유니코드 공백 문자 제거
+        return re.sub(r'[\s\u200b\u200c\u200d\ufeff]+$', '', text)
 
     # 문장부호 뒤 공백 제거 적용
     test_results["cor_sentence"] = test_results["cor_sentence"].apply(remove_trailing_space_after_punctuation)
@@ -112,9 +117,9 @@ def main():
     output = test.copy()
     output["cor_sentence"] = test_results["cor_sentence"]
     output = output[["id", "err_sentence", "cor_sentence"]]
-    output.to_csv("outputs/submission_multiturn1.csv", index=False)
+    output.to_csv("outputs/submission_multiturn2.csv", index=False)
 
-    print("\n제출 파일이 생성되었습니다: submission_multiturn1.csv")
+    print("\n제출 파일이 생성되었습니다: submission_multiturn2.csv")
     print(f"사용된 템플릿: {best_template}")
     print(f"예측된 샘플 수: {len(output)}")
 
