@@ -101,7 +101,7 @@ def main():
         template_name=best_template,
         temperature=0.0,
         batch_size=4,
-        experiment_name="final_submission2"
+        experiment_name="final_submission3"
     )
     
     runner = ExperimentRunner(config, api_key)
@@ -117,9 +117,9 @@ def main():
     output = test.copy()
     output["cor_sentence"] = test_results["cor_sentence"]
     output = output[["id", "err_sentence", "cor_sentence"]]
-    output.to_csv("outputs/submission_multiturn2.csv", index=False)
+    output.to_csv("outputs/submission_multiturn3.csv", index=False)
 
-    print("\n제출 파일이 생성되었습니다: submission_multiturn2.csv")
+    print("\n제출 파일이 생성되었습니다: submission_multiturn3.csv")
     print(f"사용된 템플릿: {best_template}")
     print(f"예측된 샘플 수: {len(output)}")
 

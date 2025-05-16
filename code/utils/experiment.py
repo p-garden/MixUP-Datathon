@@ -84,7 +84,7 @@ class ExperimentRunner:
         """데이터셋에 대한 실험 실행 (비동기 배치 처리 + 중간 저장은 test셋에만 적용)"""
         results = []
         batch_size = self.config.batch_size
-        use_intermediate = self.config.experiment_name == "final_submission2"
+        use_intermediate = self.config.experiment_name == "final_submission3"
         save_path = f"outputs/intermediate_{self.config.experiment_name}.csv"
         def clean_output(err: str, cor: str) -> str:
             """따옴표 조건부 제거 + 공백 제거"""

@@ -6,3 +6,4 @@ code/.env
 __pycache__/
 **/__pycache__/
 *.csv
+testmaker.py
