@@ -38,7 +38,7 @@ def main():
     for template_name in tqdm(TEMPLATES.keys(), desc="템플릿 실험 진행", ncols=80):
         config = ExperimentConfig(
             template_name=template_name,
-            temperature=0.0,
+            temperature=0.2,
             batch_size=4,
             experiment_name=f"toy_experiment_{template_name}"
         )
@@ -81,7 +81,7 @@ def main():
 
     preview_config = ExperimentConfig(
         template_name=best_template,
-        temperature=0.0,
+        temperature=0.2,
         batch_size=4,
         experiment_name="preview_generation"
     )
@@ -99,9 +99,9 @@ def main():
     print("\n=== 테스트 데이터 예측 시작 ===")
     config = ExperimentConfig(
         template_name=best_template,
-        temperature=0.0,
+        temperature=0.22,
         batch_size=4,
-        experiment_name="final_submission6"
+        experiment_name="final_submission7"
     )
     
     runner = ExperimentRunner(config, api_key)
@@ -111,15 +111,13 @@ def main():
         # 1. 문자열 끝에 붙은 모든 유니코드 공백 문자 제거
         return re.sub(r'[\s\u200b\u200c\u200d\ufeff]+$', '', text)
 
-    # 문장부호 뒤 공백 제거 적용
-    test_results["cor_sentence"] = test_results["cor_sentence"].apply(remove_trailing_space_after_punctuation)
     # sample_submission 형식에 맞게 생성
     output = test.copy()
     output["cor_sentence"] = test_results["cor_sentence"]
     output = output[["id", "err_sentence", "cor_sentence"]]
-    output.to_csv("outputs/submission_multiturn6.csv", index=False)
+    output.to_csv("outputs/submission_multiturn7.csv", index=False)
 
-    print("\n제출 파일이 생성되었습니다: submission_multiturn6.csv")
+    print("\n제출 파일이 생성되었습니다: submission_multiturn7.csv")
     print(f"사용된 템플릿: {best_template}")
     print(f"예측된 샘플 수: {len(output)}")
 

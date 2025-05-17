@@ -28,7 +28,7 @@ class ExperimentRunner:
     
     async def _call_api_batch_async(self, prompts: List[str]) -> List[str]:
         """템플릿 기반 멀티턴 방식으로 각 문장에 대해 3단계 교정 수행"""
-        semaphore = asyncio.Semaphore(3)  # 🔐 동시에 3개까지만 실행
+        semaphore = asyncio.Semaphore(5)  # 🔐 동시에 3개까지만 실행
 
         async def fetch_multi_turn(session, text, max_retries=3):
             async with semaphore:  # ✅ 세마포어 제한 적용
@@ -84,20 +84,9 @@ class ExperimentRunner:
         """데이터셋에 대한 실험 실행 (비동기 배치 처리 + 중간 저장은 test셋에만 적용)"""
         results = []
         batch_size = self.config.batch_size
-        use_intermediate = self.config.experiment_name == "final_submission6"
+        use_intermediate = self.config.experiment_name == "final_submission7"
         save_path = f"outputs/intermediate_{self.config.experiment_name}.csv"
-        def clean_output(err: str, cor: str) -> str:
-            """따옴표 조건부 제거 + 공백 제거"""
-            cor = re.sub(r'[\s\u200b\u200c\u200d\ufeff]+$', '', cor)  # 끝 공백 제거
-            cor = re.sub(r'\s+(?=["\'])', '', cor)  # 따옴표 앞 공백 제거
-
-            # 입력이 따옴표로 감싸져 있지 않으면 출력에서 따옴표 제거
-            if not (err.startswith('"') and err.endswith('"')) and \
-            not (err.startswith("'") and err.endswith("'")):
-                if (cor.startswith('"') and cor.endswith('"')) or \
-                (cor.startswith("'") and cor.endswith("'")):
-                    cor = cor[1:-1].strip()
-            return cor 
+        
         # ✅ 이미 처리된 id 불러오기 (재시작 지원, test셋만)
         processed_ids = set()
         if use_intermediate and os.path.exists(save_path):
@@ -118,16 +107,16 @@ class ExperimentRunner:
             responses = asyncio.run(self._call_api_batch_async(prompts))
 
             batch_results = []
+            
             for (_, row), corrected in zip(batch.iterrows(), responses):
-                cleaned = clean_output(row['err_sentence'], corrected)  # ✅ 후처리 적용
                 result = {
                     'id': row['id'],
                     'err_sentence': row['err_sentence'],
-                    'cor_sentence': cleaned
+                    'cor_sentence': corrected.strip()
                 }
                 results.append(result)
                 batch_results.append(result)
-
+            
             # ✅ 중간 결과 저장 (test셋만)
             if use_intermediate:
                 pd.DataFrame(batch_results).to_csv(
